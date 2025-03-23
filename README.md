@@ -91,7 +91,7 @@ You can ask questions, and participate in discussions about EverShop-related top
 ### Create a bug report
 
 If you see an error message or run into an issue, please [create bug report](https://github.com/evershopcommerce/evershop/issues/new). This effort is valued and it will help all EverShop users.
-
+Silvanus
 
 ### Submit a feature request
 
