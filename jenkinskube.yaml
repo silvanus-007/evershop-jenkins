@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+  namespace: jenkins
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      containers:
+        - name: jenkins
+          image: jenkins/jenkins:lts-jdk17
+          securityContext:
+            runAsUser: 0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DOCKER_HOST
+              value: "tcp://localhost:2375"
+            - name: PATH
+              value: "/var/jenkins_home/bin:$PATH"
+          volumeMounts:
+            - name: jenkins-storage
+              mountPath: /var/jenkins_home
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+          command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              mkdir -p /var/jenkins_home/bin
+              
+              if [ ! -f "/var/jenkins_home/bin/kubectl" ]; then
+                echo "Installing kubectl..."
+                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                mv kubectl /var/jenkins_home/bin/
+              fi
+
+              if [ ! -f "/var/jenkins_home/bin/docker" ]; then
+                echo "Installing Docker CLI..."
+                apt-get update && apt-get install -y docker.io
+                cp /usr/bin/docker /var/jenkins_home/bin/
+              fi
+
+              exec /usr/local/bin/jenkins.sh
+
+        - name: dind
+          image: docker:dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+
+      volumes:
+        - name: jenkins-storage
+          persistentVolumeClaim:
+            claimName: jenkins-pvc
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 3030
+      targetPort: 8080
+      nodePort: 32000
+  selector:
+    app: jenkins
