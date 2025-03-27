@@ -1,0 +1,3 @@
+GitHub                  https://plugins.jenkins.io/github/
+Groovy Libraries        https://plugins.jenkins.io/pipeline-github-lib/
+Docker Pipeline         https://plugins.jenkins.io/docker-workflow/
